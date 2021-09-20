@@ -1,0 +1,74 @@
+name: Federated AWS Login
+description: Action to login to AWS via OIDC federation
+author: elseu
+inputs:
+  role-arn:
+    description: AWS ARN of AWS IAM Role to assume (required).
+    required: true
+  session-duration:
+    description: Time in seconds that the session keys need to be valid (AWS_ACCESS_* only). Default 1000s. 
+    required: false
+    default: 1000
+outputs:
+  aws_access_key_id:
+    description: The AWS access key id.
+    value: ${{ steps.get-token.outputs.aws_access_key_id }}
+  aws_secret_access_key:
+    description: The AWS access key secret.
+    value: ${{ steps.get-token.outputs.aws_secret_access_key }}
+  aws_session_token:
+    description: The aws session token (1000s valid)
+    value: ${{ steps.get-token.outputs.aws_session_token }}
+  aws_web_identity_token_file:
+    description: The aws_web_identity_token_file.
+    value: ${{ steps.get-token.outputs.aws_web_identity_token_file }}
+runs:
+  using: "composite"
+  steps:
+    - id: print-inputs
+      run: |
+        echo "Role ARN: ${{ inputs.role-arn }}"
+      shell: bash
+
+    - name: configure-aws
+      run: |
+        set -e
+        # Optionals
+        SESSION_DURATION="${{ inputs.session-duration }}"
+
+        # More information: https://awsteele.com/blog/2021/09/15/aws-federation-comes-to-github-actions.html
+        export AWS_WEB_IDENTITY_TOKEN_FILE=.git/awscreds
+        export AWS_DEFAULT_REGION=eu-west-1 >> $GITHUB_ENV
+        export AWS_REGION=eu-west-1 >> $GITHUB_ENV
+
+        echo AWS_WEB_IDENTITY_TOKEN_FILE=$AWS_WEB_IDENTITY_TOKEN_FILE >> $GITHUB_ENV
+        echo AWS_ROLE_ARN="${{ inputs.role-arn }}" >> $GITHUB_ENV
+        echo AWS_DEFAULT_REGION=$AWS_DEFAULT_REGION >> $GITHUB_ENV
+
+        # Get the token
+        curl -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL" | jq -r '.value' > $AWS_WEB_IDENTITY_TOKEN_FILE
+
+        # Workaround for actions that don't support the use of AWS_WEB_IDENTITY_TOKEN_FILE
+        aws sts assume-role-with-web-identity \
+        --role-arn "${{ inputs.role-arn }}" \
+        --role-session-name gha-session \
+        --web-identity-token file://$AWS_WEB_IDENTITY_TOKEN_FILE \
+        --duration-seconds "${SESSION_DURATION}" > /tmp/irp-cred.txt
+
+        export AWS_ACCESS_KEY_ID="$(jq -r ".Credentials.AccessKeyId" /tmp/irp-cred.txt)"
+        export AWS_SECRET_ACCESS_KEY="$(jq -r ".Credentials.SecretAccessKey" /tmp/irp-cred.txt)"
+        export AWS_SESSION_TOKEN="$(jq -r ".Credentials.SessionToken" /tmp/irp-cred.txt)"
+        
+        echo AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID >> $GITHUB_ENV
+        echo AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY >> $GITHUB_ENV
+        echo AWS_SESSION_TOKEN=$AWS_SESSION_TOKEN >> $GITHUB_ENV
+
+        echo "::add-mask::$AWS_ACCESS_KEY_ID"
+        echo "::add-mask::$AWS_SECRET_ACCESS_KEY"
+        echo "::add-mask::$AWS_SESSION_TOKEN"
+        echo "::add-mask::$AWS_WEB_IDENTITY_TOKEN_FILE"
+        echo "::set-output name=aws_access_key_id::$AWS_ACCESS_KEY_ID"
+        echo "::set-output name=aws_secret_access_key::$AWS_SECRET_ACCESS_KEY"
+        echo "::set-output name=aws_session_token::$AWS_SESSION_TOKEN"
+        echo "::set-output name=aws_web_identity_token_file::$AWS_WEB_IDENTITY_TOKEN_FILE"
+      shell: bash
