@@ -1,18 +1,21 @@
+
+# SINCE THE UPSTREAM aws-actions/configure-aws-credentials@master IS UPDATED, USE THAT ONE INSTEAD. [MORE INFO HERE](https://github.com/elseu/sdu-awesome-actions#login-to-aws).
+
+------------
 # AWS Federated Login Action
 
 > Action to get an access to AWS via OpenID Connect (OIDC)
 
 ## Table of Contents <!-- omit in toc -->
 
-- [AWS Federated Login Action](#aws-federated-login-action)
-  - [Purpose](#purpose)
-  - [Requirements](#requirements)
-  - [Inputs](#inputs)
-  - [Outputs](#outputs)
-  - [Usage](#usage)
-  - [Maintainers](#maintainers)
-  - [Contributing](#contributing)
-  - [License](#license)
+- [Purpose](#purpose)
+- [Requirements](#requirements)
+- [Inputs](#inputs)
+- [Outputs](#outputs)
+- [Usage](#usage)
+- [Maintainers](#maintainers)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## Purpose
 
